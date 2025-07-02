@@ -45,5 +45,5 @@ TODO
 
 VII) REFERENCES:
 -------------
-[1] : On Khovanov’s categorification of the Jones polynomial, Dror Bar-Natan.
-[2] : REMARKS ON DEFINITION OF KHOVANOV HOMOLOGY, Oleg Viro.
+- [1] : On Khovanov’s categorification of the Jones polynomial, Dror Bar-Natan.
+- [2] : REMARKS ON DEFINITION OF KHOVANOV HOMOLOGY, Oleg Viro.
