@@ -407,45 +407,45 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
     If the base is not outputted (base_output == False), then it will return a ChainComplex object. Otherwise, it will output a tuple (chain_complex, base).
     """
 
-        # if not link.pd_code():
-        #     if height**2 == 1:
-        #         return ChainComplex({0: matrix(ring, 0,1)})
-        #     else:
-        #         return ChainComplex({0 : matrix(ring, 0,0)})
-                
-                
-        
-        crossings = link.pd_code()
-        ncross = len(crossings)
-        states = [(_0, set(_1), set(_2), _3, _4)
-                  for (_0, _1, _2, _3, _4) in simplified_states(link)]
-        bases = {}  # arrange them by (i,j)
-        for st in states:
-            i, j = st[3], st[4]
-            if j == height:
-                if (i, j) in bases:
-                    bases[i, j].append(st)
-                else:
-                    bases[i, j] = [st]
-        complexes = {}
-        for (i, j), bij in bases.items():
-            if (i + 1, j) in bases:
-                m = matrix(ring, len(bij), len(bases[(i + 1, j)]))
-                for ii in range(m.nrows()):
-                    V1 = bij[ii]
-                    for jj in range(m.ncols()):
-                        V2 = bases[(i + 1, j)][jj]
-                        V20 = V2[0]
-                        difs = [index for index, value in enumerate(V1[0])
-                                if value != V20[index]]
-                        if len(difs) == 1 and not (V2[2].intersection(V1[1]) or V2[1].intersection(V1[2])):
-                            m[ii, jj] = (-1)**sum(V2[0][x] for x in range(0,difs[0]))
-                            # Here we have the matrix constructed, now we have to put it in the dictionary of complexes
+    # if not link.pd_code():
+    #     if height**2 == 1:
+    #         return ChainComplex({0: matrix(ring, 0,1)})
+    #     else:
+    #         return ChainComplex({0 : matrix(ring, 0,0)})
+            
+            
+    
+    crossings = link.pd_code()
+    ncross = len(crossings)
+    states = [(_0, set(_1), set(_2), _3, _4)
+              for (_0, _1, _2, _3, _4) in simplified_states(link)]
+    bases = {}  # arrange them by (i,j)
+    for st in states:
+        i, j = st[3], st[4]
+        if j == height:
+            if (i, j) in bases:
+                bases[i, j].append(st)
             else:
-                m = matrix(ring, len(bij), 0)
-            complexes[i] = m.transpose()
-            if (i - 1, j) not in bases:
-                complexes[i - 1] = matrix(ring, len(bases[(i, j)]), 0)
-        if base_output:
-            return (ChainComplex(complexes), bases)
-        return ChainComplex(complexes)
+                bases[i, j] = [st]
+    complexes = {}
+    for (i, j), bij in bases.items():
+        if (i + 1, j) in bases:
+            m = matrix(ring, len(bij), len(bases[(i + 1, j)]))
+            for ii in range(m.nrows()):
+                V1 = bij[ii]
+                for jj in range(m.ncols()):
+                    V2 = bases[(i + 1, j)][jj]
+                    V20 = V2[0]
+                    difs = [index for index, value in enumerate(V1[0])
+                            if value != V20[index]]
+                    if len(difs) == 1 and not (V2[2].intersection(V1[1]) or V2[1].intersection(V1[2])):
+                        m[ii, jj] = (-1)**sum(V2[0][x] for x in range(0,difs[0]))
+                        # Here we have the matrix constructed, now we have to put it in the dictionary of complexes
+        else:
+            m = matrix(ring, len(bij), 0)
+        complexes[i] = m.transpose()
+        if (i - 1, j) not in bases:
+            complexes[i - 1] = matrix(ring, len(bases[(i, j)]), 0)
+    if base_output:
+        return (ChainComplex(complexes), bases)
+    return ChainComplex(complexes)
