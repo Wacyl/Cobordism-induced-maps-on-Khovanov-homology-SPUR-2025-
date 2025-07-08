@@ -202,7 +202,7 @@ class Movie():
         
         INPUTS: 
         strand: Strand number of the last link in PD notation
-        orientation : If we want the twist's loop's 0-resolution to contain a loop or not. If orientation = 1, it will, otherwist it won't. 1 by default.
+        orientation : If we want the twist's loop's 0-resolution to contain a loop or not. If orientation = 1, it will. If orientation = -1, it won't.
         strand_type : If we want the loop's crossing to be overstrand (strand_type = 1) or understrand (strand_type = -1)
         print_pd : If we want to output the pd code of the final link or not
     
