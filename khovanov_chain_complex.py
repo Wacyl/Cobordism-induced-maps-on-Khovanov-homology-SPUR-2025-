@@ -122,6 +122,10 @@ class Movie():
     -twist : Does an R1 move on a strand.
     -untwist : Undo an R1 move (TODO)
     -poke : Does an R2 move
+    -unpoke : Undo an R2 move (TODO)
+    -slide : Does an R3 move (TODO)
+    -birth : Birthes a twist (TODO)
+    -death : Kills a twist (TODO)
     -saddle : Does a saddle move on a strand
     -next_link : Outputs the (absolute) next link. By absolute, I mean that all PD notation's signs are taken in absolute values for plotting purposes.
     -reset_plot_index : Sets plot_index back to 0.
@@ -173,14 +177,14 @@ class Movie():
         ring : Underlying ring for Khovanov homology
         """
         
-        self.links = [link] 
+        self.links = [link]  #
         self.current_min_index = 0 if not link.pd_code() else min([x for crossing in link.pd_code() for x in crossing]) #
         self.plot_index = 0
-        self.last_degree = starting_qdeg 
-        self.maps = [] 
+        self.last_degree = starting_qdeg #
+        self.maps = [] #
         self.ring = ring 
         self.bases = [] #
-        self.complexes = [] 
+        self.complexes = [] #
 
         initial_complex, initial_base = height_khovanov_chain_complex(link, starting_qdeg, True, ring=self.ring)
         self.bases.append(initial_base)
@@ -190,7 +194,7 @@ class Movie():
 
     # R1 
     
-    def twist(self, strand, orientation = 1, strand_type = 1):
+    def twist(self, strand, orientation = 1, strand_type = 1, print_pd=True):
         
         """
         Creates a twist (Reidemeister 1 Move)
@@ -200,7 +204,8 @@ class Movie():
         strand: Strand number of the last link in PD notation
         orientation : If we want the twist's loop's 0-resolution to contain a loop or not. If orientation = 1, it will, otherwist it won't. 1 by default.
         strand_type : If we want the loop's crossing to be overstrand (strand_type = 1) or understrand (strand_type = -1)
-
+        print_pd : If we want to output the pd code of the final link or not
+    
         OUTPUTS: 
         Returns the last link.
 
@@ -232,8 +237,6 @@ class Movie():
 
         new_crossings.append(twist_knot_crossing)
 
-        # GENERAL CASE
-
         # Computing new pd notation
 
         orientationnes = last_link.orientation()
@@ -253,7 +256,7 @@ class Movie():
         new_link = Link(new_crossings)
         self.links.append(new_link)
 
-        # Computing induced chain map
+        # Computing chain map
         
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1] # arrange them by (i,j)
         final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) # arrange them by (i,j)
@@ -288,29 +291,123 @@ class Movie():
         chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
         self.maps.append(chain_morphism)
 
-        
+        if print_pd:
+            print(new_crossings)
         return new_link
 
-    # def untwist(self, loop_label):
-    #     # last_link = self.links[-1]
-    #     # crossings = last_link.pd_code()
-    #     # new_crossings = copy.deepcopy(crossings)
+    def untwist(self, loop_label, print_pd = True):
+        
+        """
+        Untwists a link, opposite to the twist (R1) move. 
 
-    #     # directions = last_link._directions_of_edges()
-    #     # loop_crossing = directions[0][loop_label]
-    #     # if loop_crossing != directions[1][loop_label]:
-    #     #     raise ValueError("Invalid input : Must input the label's strand pd index")
+        INPUTS:
+        loop_label: The label of the loop strand.
+        print_pd : If we want to output the pd code of the final link or not
+        
+        OUTPUTS:
+        Returns the last link.
 
-    #     # if (sum(loop_crossing)/2 - *(loop_label)) in loop_crossing: 
+        WARNING: If you untwist a twisted unknot that is not the entire link, an error will be thrown. Refer to the death method instead in this 
+        specific instance.
+        """
+        
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)
 
-     
-    #     return None
+        # Checking input validity
+
+        directions = last_link._directions_of_edges()
+        loop_crossing = directions[0][loop_label]
+        if loop_crossing != directions[1][loop_label]:
+            raise ValueError("Invalid input: Must input the label's strand pd label.")
+
+        if (sum(loop_crossing)/2 - (loop_label)) in loop_crossing and len(crossings) > 1: 
+            raise ValueError("Invalid input: Cannot untwist a twisted unknot if it's not the whole link. Refer to death method instead.")
+
+        # Determining incoming and outgoing strands + orientation + strand_type
+
+        incoming_strand, outgoing_strand, orientation , strand_type = 0,0,0,0
+        if loop_crossing[0] == loop_crossing[1] == loop_label:            # [loop_label, loop_label, new_strand_label, strand]
+            orientation,strand_type = 1,1
+            incoming_strand,outgoing_strand = loop_crossing[3],loop_crossing[2]
+            
+        elif loop_crossing[2]== loop_crossing[3] == loop_label:           # [strand, new_strand_label, loop_label, loop_label]
+            orientation,strand_type = 1,-1
+            incoming_strand,outgoing_strand = loop_crossing[0],loop_crossing[1]
+            
+        elif loop_crossing[0] == loop_crossing[3] == loop_label:          # [loop_label, strand, new_strand_label, loop_label]
+            orientation,strand_type = -1,1
+            incoming_strand,outgoing_strand = loop_crossing[1],loop_crossing[2]
+            
+        elif loop_crossing[1] == loop_crossing[2] == loop_label:          # [strand, loop_label, loop_label, new_strand_label]
+            orientation,strand_type = -1,-1   
+            incoming_strand,outgoing_strand = loop_crossing[0],loop_crossing[3]
+            
+        else:
+            raise ValueError("Invalid input: Crossing is not a loop.")
+
+        # Adjusting strands
+
+        index_of_crossing = crossings.index(loop_crossing)
+        new_crossings.pop(index_of_crossing)
+        if len(crossings) > 1:
+            other_crossing = directions[1][outgoing_strand]
+            j = new_crossings.index(other_crossing)
+            new_crossings[j][strand_index(new_crossings[j],outgoing_strand,1)] = incoming_strand
+
+        self.current_min_index = 0 if not new_crossings else min([x for crossing in new_crossings for x in crossing]) 
+
+        new_link = Link(new_crossings)
+        self.links.append(new_link)
+        
+        # Computing chain map
+
+        last_degree = self.last_degree 
+        departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        self.complexes.append(final_complex)
+        self.bases.append(final_bases)
+            
+        chain_maps = {}
+
+        orientationnes = last_link.orientation()
+        n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        n_plus =  0 if not crossings else len(orientationnes) - n_minus
+
+        for homological_degree in range(-n_minus, n_plus+1):
+            domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+            image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
+            m = matrix(self.ring, domain_size, image_size)
+            for state_index in range(domain_size):
+                for image_state_index in range(image_size):
+                    state = departure_bases[(homological_degree, last_degree)][state_index]
+                    image_state = final_bases[(homological_degree, last_degree)][image_state_index]
+
+                    remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
+                    remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
+                    
+                    if orientation == 1:
+                        if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+                            m[state_index,image_state_index] = 1
+                    else:
+                        if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                            m[state_index,image_state_index] = strand_sign(loop_label,state)
+
+            chain_maps[homological_degree]= m.transpose()
+
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        self.maps.append(chain_morphism)
+
+        if print_pd:
+            print(new_crossings)
+        return new_link
 
     
 
     #R2
 
-    def poke(self, strand1, strand2, parallel=-1, over=1):
+    def poke(self, strand1, strand2, parallel=-1, over=1, print_pd=True):
         
         """
         Creates a poke (Reidemeister 2 Move)
@@ -321,13 +418,15 @@ class Movie():
         strand2: Second strand number in last link's pd notation
         parallel : 1 if the (oriented) strands are parallel, -1 otherwise.
         over : 1 if we want strand 1 to poke on top of strand 2, -1 otherwise. Only relevant if strand1==strand2 otherwise switching order is enough
+        print_pd : If we want to output the pd code of the final link or not
 
         OUTPUTS: 
         Returns the last link.
 
         REMARK : The numbering of the strands goes as follows: outgoing parts of strand1, strand2 remain the same. We then number down mid1
-        and mid2, and finally last1 and last2, in this order. Should there be some collapses, we take the minimum label. The labelling is flipped
-        for the unknot, so we suggest looking up the PD notation to start with that in case your movie starts with the unknot. 
+        and mid2, and finally last1 and last2, in this order. For the unknot, the convention is given by (flipped labelling):
+        st1,mid1,last1,st2,mid2,last2 = -1,-3,-2,-2,-4,-1
+        If strand1 = strand2, the labelling is the exact same except we change strand2 for last1.
         """
         
         last_link = self.links[-1]
@@ -392,7 +491,6 @@ class Movie():
                 j1 = crossings.index(incoming_to1)
                 new_crossings[j1][strand_index(new_crossings[j1], strand1,1)] = last1
 
-        print(new_crossings)
         new_link = Link(new_crossings)
         self.links.append(new_link)
             
@@ -436,8 +534,8 @@ class Movie():
         chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
         self.maps.append(chain_morphism)
 
-
-        
+        if print_pd:
+            print(new_crossings)       
         return new_link
 
     # def unpoke(self):
@@ -450,7 +548,7 @@ class Movie():
 
     # Saddle moves
 
-    def saddle(self, strand1, strand2):
+    def saddle(self, strand1, strand2, print_pd=True):
         
         """
         Creates a saddle move. Computes the new link as well as induced chain maps.
@@ -458,7 +556,8 @@ class Movie():
         INPUTS:
         strand1 : First strand in last link's pd notation.
         strand2 : Second strand in last link's pd notation.
-
+        print_pd : If we want to output the pd code of the final link or not
+        
         OUTPUTS: 
         New last link after the saddle
         """
@@ -520,31 +619,214 @@ class Movie():
         self.maps.append(chain_morphism)
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
-        
+
+        if print_pd:
+            print(new_crossings)
         return new_link
 
     # Birth and death
 
-    def twist_birth(self):
+    def birth(self, print_pd = True):
         
         """
         Births a twisted unknot.
         Virtually equivalent to the usual birth move because the homotopy equivalence is a deformation retraction.
-        WARNING: Calling a twist_birth on the unknot will simply untwist it.
+        WARNING : Calling a birth on the unknot will first twist it.
+        REMARK: The convention is to birth a twisted unknot who'se main resolution does not contain a circle + understrand. In the .twist method language, this
+        corresponds to passing in (-1,-1) as the last two arguments. 
+
+        INPUTS: 
+        print_pd : If we want to output the pd code of the final link or not
+        
+        OUTPUTS: 
+        Link object with an added twist.
         """
-        return None
+
+        was_unknot = False
+        
+        if not self.links[-1].pd_code():
+            self.twist(-1,-1,-1, False)
+            was_unknot = True 
+        
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)
+
+        # Adding strands 
+        
+        strand1, strand2 = self.current_min_index -1, self.current_min_index - 2 
+        self.current_min_index = strand2 
+
+        # Adding crossings
+
+        new_crossings.append([strand1, strand2, strand2, strand1])
+        new_link = Link(new_crossings)
+        if was_unknot:
+            self.links[-1] = new_link
+        else:
+            self.links.append(new_link)
+
+        # Computing chain map
+        
+        last_degree = self.last_degree
+        self.last_degree = last_degree + 1       
+        departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True, self.ring)
+        
+        if was_unknot:
+            self.complexes[-1]= (final_complex)
+            self.bases[-1] = (final_bases)
+        else:
+            self.complexes.append(final_complex)
+            self.bases.append(final_bases)
+
+        chain_maps = {}
+
+        orientationnes = last_link.orientation()
+        n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        n_plus =  0 if not crossings else len(orientationnes) - n_minus
+
+        for homological_degree in range(-n_minus, n_plus+1):
+            domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+            image_size = 0 if ((homological_degree, last_degree+1) not in final_bases) else len(final_bases[(homological_degree, last_degree+1)]) 
+            m = matrix(self.ring, domain_size, image_size)
+            for state_index in range(domain_size):
+                for image_state_index in range(image_size):
+                    state = departure_bases[(homological_degree, last_degree)][state_index]
+                    image_state = final_bases[(homological_degree, last_degree+1)][image_state_index]
+
+                    remaining_circles1 = delete_circles(state, [strand1, strand2])
+                    remaining_circles2 = delete_circles(image_state, [strand1, strand2])
+                    
+                    if image_state[0] == (*state[0],1) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(strand2, image_state) == 1):
+                        m[state_index,image_state_index] = 1 
+
+            chain_maps[homological_degree]= m.transpose()
+
+        
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        if was_unknot:
+            self.maps[-1] = chain_morphism * self.maps[-1]
+        else:
+            self.maps.append(chain_morphism) 
+        
+        if print_pd:
+            print(new_crossings)
+        return new_link
 
 
 
 
 
-    def twist_death(self):
+    def death(self, loop_label, print_pd=True):
         
         """
         Kills a twisted unknot.
         Virtually equivalent to the usual death move because the homotopy equivalence is a deformation retraction.
+
+        INPUTS:
+        loop_label: A strand in the twisted unknot.
+        print_pd : If we want to output the pd code of the final link or not
+        
+        OUTPUTS:
+        Returns the link after the death move
+
+        REMARK: You may only kill a twisted unknot in a link with atleast 2 components. 
+        WARNING: This map may induce a minus sign. It will apply the untwist chain map on the loop label given, then the theoretical death map on the 
+        remaining loop after the untwist. So be careful when birthing or killing circles to only kill the extra loop. For example, if, in your cobordism
+        you birth an unknot as a twist (-2,-1) and then you do some stuff to the -1 strand before making it return to its original state, you'd want to 
+        call the death map here on the -2 strand left untouched. Calling it on -1 will create an artificial negative sign.
         """
-        return None
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)
+
+        # Checking input validity
+
+        directions = last_link._directions_of_edges()
+        loop_crossing = directions[0][loop_label]
+        if loop_crossing != directions[1][loop_label]:
+            raise ValueError("Invalid input: Must input the label's strand pd label.")
+
+        if not ((sum(loop_crossing)/2 - (loop_label)) in loop_crossing) or len(crossings) == 1: 
+            raise ValueError("Invalid input: Input needs to be a twisted unknot. Link should have >= 2 crossings.")
+
+        # Determining incoming and outgoing strands + orientation + strand_type
+
+        other_strand, orientation , strand_type = 0,0,0
+        if loop_crossing[0] == loop_crossing[1] == loop_label:            # [loop_label, loop_label, new_strand_label, strand]
+            orientation,strand_type = 1,1
+            other_strand = loop_crossing[3]
+            
+        elif loop_crossing[2]== loop_crossing[3] == loop_label:           # [strand, new_strand_label, loop_label, loop_label]
+            orientation,strand_type = 1,-1
+            other_strand = loop_crossing[0]
+            
+        elif loop_crossing[0] == loop_crossing[3] == loop_label:          # [loop_label, strand, new_strand_label, loop_label]
+            orientation,strand_type = -1,1
+            other_strand = loop_crossing[1]
+            
+        elif loop_crossing[1] == loop_crossing[2] == loop_label:          # [strand, loop_label, loop_label, new_strand_label]
+            orientation,strand_type = -1,-1   
+            other_strand = loop_crossing[0]
+            
+        else:
+            raise ValueError("Invalid input: Crossing is not a loop.")
+
+        # Adjusting strands
+
+        index_of_crossing = crossings.index(loop_crossing)
+        new_crossings.pop(index_of_crossing)
+        
+        self.current_min_index = min([x for crossing in new_crossings for x in crossing]) 
+
+        new_link = Link(new_crossings)
+        self.links.append(new_link)
+        
+        # Computing chain map
+
+        last_degree = self.last_degree 
+        self.last_degree = last_degree + 1
+        departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True) 
+        self.complexes.append(final_complex)
+        self.bases.append(final_bases)
+            
+        chain_maps = {}
+
+        orientationnes = last_link.orientation()
+        n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        n_plus =  0 if not crossings else len(orientationnes) - n_minus
+
+        for homological_degree in range(-n_minus, n_plus+1):
+            domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+            image_size = 0 if ((homological_degree, last_degree+1) not in final_bases) else len(final_bases[(homological_degree, last_degree+1)]) 
+            m = matrix(self.ring, domain_size, image_size)
+            for state_index in range(domain_size):
+                for image_state_index in range(image_size):
+                    state = departure_bases[(homological_degree, last_degree)][state_index]
+                    image_state = final_bases[(homological_degree, last_degree+1)][image_state_index]
+
+                    remaining_circles1 = delete_circles(state, [loop_label, other_strand])
+                    remaining_circles2 = delete_circles(image_state, [loop_label, other_strand]) 
+                    
+                    if orientation == 1:
+                        if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+                            m[state_index,image_state_index] = 1
+                    else:
+                        if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                            m[state_index,image_state_index] = strand_sign(loop_label,state)
+
+
+            chain_maps[homological_degree]= m.transpose()
+
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        self.maps.append(chain_morphism)
+
+        if print_pd:
+            print(new_crossings)
+        return new_link
+
 
 
 
@@ -558,6 +840,12 @@ class Movie():
         """
         Returns the next link in chain based on plot_index. If at the end, circles back to the start.
         Remark: For plotting purposes, we take the absolute value of all PD strands. Hence the movie should only use negative strands.
+
+        INPUTS:
+        None
+
+        OUTPUTS:
+        Next link in the sequence in absolute value of strands.
         """
         
         actual_link = self.links[self.plot_index]
@@ -569,6 +857,12 @@ class Movie():
     def reset_plot_index(self):
         """
         Resets plot_index.
+
+        INPUTS:
+        None
+
+        OUTPUTS:
+        None
         """
         self.plot_index = 0
                 
@@ -666,8 +960,8 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
         if (i - 1, j) not in bases:
             complexes[i - 1] = matrix(ring, len(bases[(i, j)]), 0)
     if base_output:
-        return (ChainComplex(complexes), bases)
-    return ChainComplex(complexes)
+        return (ChainComplex(complexes, check=True), bases)
+    return ChainComplex(complexes, check=True)
 
 
 
