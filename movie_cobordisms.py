@@ -274,20 +274,20 @@ class Movie():
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree)][image_state_index]
 
-                    remaining_circles1 = delete_circles(state, [strand])
-                    remaining_circles2 = delete_circles(image_state, [strand, loop_label, new_strand_label])
-                    
-                    if orientation == 1:
-                        if image_state[0] == (*state[0],0) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-                            m[state_index,image_state_index] = -1 if (((loop_label, loop_label),) in image_state[2]) else 1
-                    else:
-                        if image_state[0] == (*state[0],1) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (((loop_label, loop_label),) in image_state[2]):
-                            m[state_index,image_state_index] = 1 
+                    if image_state[0][:-1] == state[0]:
+
+                        remaining_circles1 = delete_circles(state, [strand])
+                        remaining_circles2 = delete_circles(image_state, [strand, loop_label, new_strand_label])
+                        
+                        if orientation == 1:
+                            if image_state[0][-1] == 0 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                                m[state_index,image_state_index] = -1 if (((loop_label, loop_label),) in image_state[2]) else 1
+                        else:
+                            if image_state[0][-1] == 1 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (((loop_label, loop_label),) in image_state[2]):
+                                m[state_index,image_state_index] = 1 
 
             chain_maps[homological_degree]= m.transpose()
 
-            
-            
         chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
         self.maps.append(chain_morphism)
 
@@ -384,15 +384,19 @@ class Movie():
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree)][image_state_index]
 
-                    remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
-                    remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
+                    resolution_copy = list(state[0])
+                    resolution_copy.pop(index_of_crossing)
+                    if resolution_copy == list(image_state[0]):
                     
-                    if orientation == 1:
-                        if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
-                            m[state_index,image_state_index] = 1
-                    else:
-                        if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-                            m[state_index,image_state_index] = strand_sign(loop_label,state)
+                        remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
+                        remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
+                        
+                        if orientation == 1:
+                            if state[0][index_of_crossing] == 0 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+                                m[state_index,image_state_index] = 1
+                        else:
+                            if state[0][index_of_crossing] == 1 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                                m[state_index,image_state_index] = strand_sign(loop_label,state)
 
             chain_maps[homological_degree]= m.transpose()
 
@@ -516,19 +520,22 @@ class Movie():
             m = matrix(self.ring, domain_size, image_size)
             for state_index in range(domain_size):
                 for image_state_index in range(image_size):
+                    
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree)][image_state_index]
+
+                    if image_state[0][:-2] == state[0]:
                     
-                    identity_res = (*state[0],0,1) if over==1 else (*state[0],1,0)
-                    other_res = (*state[0],1,0) if over==1 else (*state[0],0,1)
-                    
-                    remaining_circles1 = delete_circles(state, [strand1, strand2])
-                    remaining_circles2 = delete_circles(image_state, [st1, st2,last1, last2, mid1, mid2])
-                    
-                    if image_state[0] == identity_res and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and strand_sign(strand1, state) == strand_sign(st1, image_state):
-                        m[state_index, image_state_index] = 1
-                    elif image_state[0] == other_res and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0]))  and strand_sign(mid1, image_state) == 1:
-                        m[state_index,image_state_index] = 1
+                        identity_res = (0,1) if over==1 else (1,0)
+                        other_res = (1,0) if over==1 else (0,1)
+                        
+                        remaining_circles1 = delete_circles(state, [strand1, strand2])
+                        remaining_circles2 = delete_circles(image_state, [st1, st2,last1, last2, mid1, mid2])
+                        
+                        if image_state[0][-2:] == identity_res and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and strand_sign(strand1, state) == strand_sign(st1, image_state):
+                            m[state_index, image_state_index] = 1
+                        elif image_state[0][-2:] == other_res and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0]))  and strand_sign(mid1, image_state) == 1:
+                            m[state_index,image_state_index] = 1
 
             chain_maps[homological_degree]= m.transpose()
 
@@ -582,23 +589,21 @@ class Movie():
             raise ValueError("Invalid input: The strands inputted do not represent a 'poke' move")
 
         over = -1 if first_crossing1[0] == strand1 else 1
-        
-        collapse = False 
-        if last1==strand2:
-            collapse = True
-            if parallel==1:
-                raise ValueError("Impossible configuration detected. Are you sure your inputs are correct?")
-        
 
         # Adjusting strands
         
         st1, st2 = strand1, strand1
-        i1,j1,i2,j2 = crossings.index(directions[0][strand1]), crossings.index(directions[1][last1]), crossings.index(directions[0][strand2]), crossings.index(directions[1][last2])
-        if not collapse: 
+        j1,j2 =  crossings.index(directions[1][last1]), crossings.index(directions[1][last2])
+        
+        if not last1==strand2: 
             st2 = strand2 
             new_crossings[j1][strand_index(new_crossings[j1], last1, 1)] = st1 
-
+        else:
+            if parallel==1:
+                raise ValueError("Impossible configuration detected. Are you sure your inputs are correct?")
+                
         new_crossings[j2][strand_index(new_crossings[j2], last2, 1)] = st2
+        
         indices_to_remove = sorted([crossings.index(first_crossing1), crossings.index(second_crossing1)], reverse=True)
         for indexdel in indices_to_remove:
             new_crossings.pop(indexdel)
@@ -610,41 +615,48 @@ class Movie():
         
         # Computing chain map
 
-        # last_degree = self.last_degree 
-        # departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        # final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
-        # self.complexes.append(final_complex)
-        # self.bases.append(final_bases)
+        last_degree = self.last_degree 
+        departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        self.complexes.append(final_complex)
+        self.bases.append(final_bases)
             
-        # chain_maps = {}
+        chain_maps = {}
 
-        # orientationnes = last_link.orientation()
-        # n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
-        # n_plus =  0 if not crossings else len(orientationnes) - n_minus
+        orientationnes = last_link.orientation()
+        n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        n_plus =  0 if not crossings else len(orientationnes) - n_minus
 
-        # for homological_degree in range(-n_minus, n_plus+1):
-        #     domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
-        #     image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
-        #     m = matrix(self.ring, domain_size, image_size)
-        #     for state_index in range(domain_size):
-        #         for image_state_index in range(image_size):
-        #             state = departure_bases[(homological_degree, last_degree)][state_index]
-        #             image_state = final_bases[(homological_degree, last_degree)][image_state_index]
-
-        #             remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
-        #             remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
+        for homological_degree in range(-n_minus, n_plus+1):
+            domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+            image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
+            m = matrix(self.ring, domain_size, image_size)
+            
+            for state_index in range(domain_size):
+                for image_state_index in range(image_size):
                     
-        #             if orientation == 1:
-        #                 if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
-        #                     m[state_index,image_state_index] = 1
-        #             else:
-        #                 if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-        #                     m[state_index,image_state_index] = strand_sign(loop_label,state)
+                    state = departure_bases[(homological_degree, last_degree)][state_index]
+                    image_state = final_bases[(homological_degree, last_degree)][image_state_index]
 
-        #     chain_maps[homological_degree]= m.transpose()
+                    resolution_copy = list(state[0])
+                    for indexdel in indices_to_remove:
+                        resolution_copy.pop(indexdel)
+                        
+                    if resolution_copy == list(image_state[0]) and state[0][indices_to_remove[0]] + state[0][indices_to_remove[1]] == 1: # Appropriate states only
+                    
+                        remaining_circles1 = delete_circles(state, [strand1, mid2, last1])
+                        remaining_circles2 = delete_circles(image_state, [st1, st2]) 
+                        if not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])): # Checks that signs of unrelated circles are the same
+                        
+                            if ((mid1,mid2),(mid2,mid1)) in state[1] or ((mid2,mid1),(mid1,mid2)) in state[1]:
+                                m[state_index,image_state_index] = -1
+                            elif (((mid2, mid1),(mid1, mid2)) not in state[2]) and (((mid1, mid2),(mid2, mid1)) not in state[2]) and strand_sign(strand1, state) == strand_sign(st1, image_state):
+                                m[state_index,image_state_index] = 1
 
-        # chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
-        # self.maps.append(chain_morphism)
+            chain_maps[homological_degree]= m.transpose()
+
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        self.maps.append(chain_morphism)
 
         if print_pd:
             print(new_crossings)
@@ -723,11 +735,12 @@ class Movie():
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree-1)][image_state_index]
 
-                    remaining_circles1 = delete_circles(state, [strand1, strand2])
-                    remaining_circles2 = delete_circles(image_state, [strand1, strand2])
-                    
-                    if image_state[0] == state[0] and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-                        m[state_index,image_state_index] = 1 
+                    if image_state[0] == state[0]:
+                        remaining_circles1 = delete_circles(state, [strand1, strand2])
+                        remaining_circles2 = delete_circles(image_state, [strand1, strand2])
+                        
+                        if not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                            m[state_index,image_state_index] = 1 
 
             chain_maps[homological_degree]= m.transpose()
 
@@ -812,11 +825,12 @@ class Movie():
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree+1)][image_state_index]
 
-                    remaining_circles1 = delete_circles(state, [strand1, strand2])
-                    remaining_circles2 = delete_circles(image_state, [strand1, strand2])
-                    
-                    if image_state[0] == (*state[0],1) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(strand2, image_state) == 1):
-                        m[state_index,image_state_index] = 1 
+                    if image_state[0] == (*state[0],1):
+                        remaining_circles1 = delete_circles(state, [strand1, strand2])
+                        remaining_circles2 = delete_circles(image_state, [strand1, strand2])
+                        
+                        if not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(strand2, image_state) == 1):
+                            m[state_index,image_state_index] = 1 
 
             chain_maps[homological_degree]= m.transpose()
 
@@ -923,16 +937,20 @@ class Movie():
                 for image_state_index in range(image_size):
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree+1)][image_state_index]
-
-                    remaining_circles1 = delete_circles(state, [loop_label, other_strand])
-                    remaining_circles2 = delete_circles(image_state, [loop_label, other_strand]) 
                     
-                    if orientation == 1:
-                        if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
-                            m[state_index,image_state_index] = 1
-                    else:
-                        if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-                            m[state_index,image_state_index] = strand_sign(loop_label,state)
+                    resolution_copy = list(state[0])
+                    resolution_copy.pop(index_of_crossing)
+                    
+                    if resolution_copy == list(image_state[0]):
+                        remaining_circles1 = delete_circles(state, [loop_label, other_strand])
+                        remaining_circles2 = delete_circles(image_state, [loop_label, other_strand]) 
+                        
+                        if orientation == 1:
+                            if (state[0][index_of_crossing] == 0) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+                                m[state_index,image_state_index] = 1
+                        else:
+                            if (state[0][index_of_crossing] == 1) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                                m[state_index,image_state_index] = strand_sign(loop_label,state)
 
 
             chain_maps[homological_degree]= m.transpose()
@@ -1070,7 +1088,6 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
                             if value != V20[index]]
                     if len(difs) == 1 and not (V2[2].intersection(V1[1]) or V2[1].intersection(V1[2])):
                         m[ii, jj] = (-1)**sum(V2[0][x] for x in range(0,difs[0]))
-                        # Here we have the matrix constructed, now we have to put it in the dictionary of complexes
         else:
             m = matrix(ring, len(bij), 0)
         complexes[i] = m.transpose()
@@ -1079,9 +1096,3 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
     if base_output:
         return (ChainComplex(complexes, check=True), bases)
     return ChainComplex(complexes, check=True)
-
-
-
-
-
-
