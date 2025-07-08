@@ -417,7 +417,7 @@ class Movie():
         strand1: First strand number in last link's pd notation
         strand2: Second strand number in last link's pd notation
         parallel : 1 if the (oriented) strands are parallel, -1 otherwise.
-        over : 1 if we want strand 1 to poke on top of strand 2, -1 otherwise. Only relevant if strand1==strand2 otherwise switching order is enough
+        over : 1 if we want strand 1 to poke on top of strand 2, -1 otherwise. 
         print_pd : If we want to output the pd code of the final link or not
 
         OUTPUTS: 
@@ -427,6 +427,7 @@ class Movie():
         and mid2, and finally last1 and last2, in this order. For the unknot, the convention is given by (flipped labelling):
         st1,mid1,last1,st2,mid2,last2 = -1,-3,-2,-2,-4,-1
         If strand1 = strand2, the labelling is the exact same except we change strand2 for last1.
+        Finally, the
         """
         
         last_link = self.links[-1]
@@ -443,7 +444,7 @@ class Movie():
         last2 = self.current_min_index - 4
         
         if not crossings:
-            st1,mid1,last1,st2,mid2,last2 = -1,-3,-2,-2,-4,-1
+            st1,mid1,last1,st2,mid2,last2 = -1,-2,-3,-3,-4,-1
             if parallel==1:
                 raise ValueError("Cannot 'poke' the unknot with two parallel strands")
         else:
@@ -538,11 +539,127 @@ class Movie():
             print(new_crossings)       
         return new_link
 
-    # def unpoke(self):
-    #     """
-    #     TODO
-    #     """
-    #     return None
+        
+
+    def unpoke(self, strand1, strand2, print_pd = True):
+        
+        """
+        Unpokes a link, opposite to the poke (R2) move. 
+
+        INPUTS:
+        strand1: The label of the first strand (the one going around the other strand). This should be the label of the strand incoming to the
+                first crossing representing the poke.
+        strand2: The label of the second strand (the one that remains still while the other goes around). The second strand should consist of three
+                labels: two externals and one middle label. strand2 should be the label of the external strand incoming into a poke's crossing.
+        print_pd : If we want to output the pd code of the final link or not.
+        
+        OUTPUTS:
+        Returns the last link.
+        """
+        
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)
+        directions = last_link._directions_of_edges()
+        
+        # Recovering strands/crossings/parallel/over
+
+        first_crossing1 = directions[1][strand1]
+        mid1 = first_crossing1[((strand_index(first_crossing1, strand1, 1)+2)%4)]
+        second_crossing1 = directions[1][mid1]
+        last1 = second_crossing1[((strand_index(second_crossing1, mid1, 1)+2)%4)]
+
+        first_crossing2 = directions[1][strand2]
+        mid2 = first_crossing2[((strand_index(first_crossing2, strand2, 1)+2)%4)]
+        second_crossing2 = directions[1][mid2]
+        last2 = second_crossing2[((strand_index(second_crossing2, mid2, 1)+2)%4)]
+        
+        if first_crossing1 == first_crossing2 and second_crossing1 == second_crossing2 :
+            parallel = 1
+        elif first_crossing1 == second_crossing2 and second_crossing1 == first_crossing2:
+            parallel = -1
+        else:
+            raise ValueError("Invalid input: The strands inputted do not represent a 'poke' move")
+
+        over = -1 if first_crossing1[0] == strand1 else 1
+        
+        collapse = False 
+        if last1==strand2:
+            collapse = True
+            if parallel==1:
+                raise ValueError("Impossible configuration detected. Are you sure your inputs are correct?")
+        
+
+        # Adjusting strands
+        
+        st1, st2 = strand1, strand1
+        i1,j1,i2,j2 = crossings.index(directions[0][strand1]), crossings.index(directions[1][last1]), crossings.index(directions[0][strand2]), crossings.index(directions[1][last2])
+        if not collapse: 
+            st2 = strand2 
+            new_crossings[j1][strand_index(new_crossings[j1], last1, 1)] = st1 
+
+        new_crossings[j2][strand_index(new_crossings[j2], last2, 1)] = st2
+        indices_to_remove = sorted([crossings.index(first_crossing1), crossings.index(second_crossing1)], reverse=True)
+        for indexdel in indices_to_remove:
+            new_crossings.pop(indexdel)
+            
+        self.current_min_index = 0 if not new_crossings else min([x for crossing in new_crossings for x in crossing]) 
+
+        new_link = Link(new_crossings)
+        self.links.append(new_link)
+        
+        # Computing chain map
+
+        # last_degree = self.last_degree 
+        # departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        # final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        # self.complexes.append(final_complex)
+        # self.bases.append(final_bases)
+            
+        # chain_maps = {}
+
+        # orientationnes = last_link.orientation()
+        # n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        # n_plus =  0 if not crossings else len(orientationnes) - n_minus
+
+        # for homological_degree in range(-n_minus, n_plus+1):
+        #     domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+        #     image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
+        #     m = matrix(self.ring, domain_size, image_size)
+        #     for state_index in range(domain_size):
+        #         for image_state_index in range(image_size):
+        #             state = departure_bases[(homological_degree, last_degree)][state_index]
+        #             image_state = final_bases[(homological_degree, last_degree)][image_state_index]
+
+        #             remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
+        #             remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
+                    
+        #             if orientation == 1:
+        #                 if (state[0] == image_state[0][:index_of_crossing] + (0,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+        #                     m[state_index,image_state_index] = 1
+        #             else:
+        #                 if (state[0] == image_state[0][:index_of_crossing] + (1,) + image_state[0][index_of_crossing:]) and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+        #                     m[state_index,image_state_index] = strand_sign(loop_label,state)
+
+        #     chain_maps[homological_degree]= m.transpose()
+
+        # chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        # self.maps.append(chain_morphism)
+
+        if print_pd:
+            print(new_crossings)
+        return new_link
+
+        
+        return None
+
+    # R3
+
+    def slide(self, something, something_else):
+        """
+        Truly painful
+        """
+        return None
 
 
 
