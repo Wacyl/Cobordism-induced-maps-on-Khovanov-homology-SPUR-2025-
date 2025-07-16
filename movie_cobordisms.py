@@ -1094,5 +1094,5 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
         if (i - 1, j) not in bases:
             complexes[i - 1] = matrix(ring, len(bases[(i, j)]), 0)
     if base_output:
-        return (ChainComplex(complexes, check=True), bases)
-    return ChainComplex(complexes, check=True)
+        return (ChainComplex(complexes,base_ring=ring check=True), bases)
+    return ChainComplex(complexes,base_ring=ring check=True)
