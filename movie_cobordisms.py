@@ -3,6 +3,46 @@ import copy
 
 # HELPER FUNCTIONS
 
+def mult_perm(lperms):
+
+    """
+    Given a list of permutations as dictionnaries, multiplies them in the given order.
+
+    INPUTS:
+    lperms: A list of dictionnaries representing permutations.
+
+    OUTPUTS:
+    The permutation represented by a dictionnary given by the (ordered) product of the permutations in the list.
+    """
+    if len(lperms) == 1:
+        return lperms[0] 
+
+    if len(lperms) == 2:
+        
+        start = lperms[0]
+        end = lperms[1]
+        n = max(set(start.keys()).union(set(end.keys())))+1
+
+        new_perm = {}
+        
+        for index in range(n):
+            if index in end:
+                image = end[index]
+                if image in start:
+                    image = start[image]
+
+                new_perm[index]= image
+            else:
+                if index in start:
+                    new_perm[index] = start[index]
+
+        return new_perm
+            
+
+    new_list = lperms[:-2] + [mult_perm([lperms[-2],lperms[-1]])]
+    return mult_perm(new_list)
+    
+
 def strand_index(crossing, strand, direction):
     
     """
@@ -100,6 +140,8 @@ def delete_circles(state, strands):
 
     return [negative_circles, positive_circles]
         
+
+
 
 # MOVIE CLASS
 
@@ -202,7 +244,7 @@ class Movie():
         
         INPUTS: 
         strand: Strand number of the last link in PD notation
-        orientation : If we want the twist's loop's 0-resolution to contain a loop or not. If orientation = 1, it will. If orientation = -1, it won't.
+        orientation : If we want the twist's loop's 0-resolution to contain a loop or not. If orientation = 1, it will, otherwist it won't. 1 by default.
         strand_type : If we want the loop's crossing to be overstrand (strand_type = 1) or understrand (strand_type = -1)
         print_pd : If we want to output the pd code of the final link or not
     
@@ -311,18 +353,19 @@ class Movie():
         specific instance.
         """
         
-        last_link = self.links[-1]
-        crossings = last_link.pd_code()
-        new_crossings = copy.deepcopy(crossings)
-
         # Checking input validity
 
-        directions = last_link._directions_of_edges()
+        bad_crossings = self.links[-1].pd_code()
+        ncrossings = len(bad_crossings)
+
+        directions = self.links[-1]._directions_of_edges()
         loop_crossing = directions[0][loop_label]
+        
         if loop_crossing != directions[1][loop_label]:
             raise ValueError("Invalid input: Must input the label's strand pd label.")
 
-        if (sum(loop_crossing)/2 - (loop_label)) in loop_crossing and len(crossings) > 1: 
+        other_potential_loop = sum(loop_crossing)/2 - (loop_label)
+        if (other_potential_loop != loop_label ) and (other_potential_loop in loop_crossing) and ncrossings > 1: 
             raise ValueError("Invalid input: Cannot untwist a twisted unknot if it's not the whole link. Refer to death method instead.")
 
         # Determining incoming and outgoing strands + orientation + strand_type
@@ -348,10 +391,13 @@ class Movie():
             raise ValueError("Invalid input: Crossing is not a loop.")
 
         # Adjusting strands
-
-        index_of_crossing = crossings.index(loop_crossing)
-        new_crossings.pop(index_of_crossing)
-        if len(crossings) > 1:
+        index_of_crossing = bad_crossings.index(loop_crossing)
+        self.permute({index_of_crossing : ncrossings-1, ncrossings-1:index_of_crossing}, print_pd = False)
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)
+        new_crossings.pop()
+        if ncrossings > 1:
             other_crossing = directions[1][outgoing_strand]
             j = new_crossings.index(other_crossing)
             new_crossings[j][strand_index(new_crossings[j],outgoing_strand,1)] = incoming_strand
@@ -360,7 +406,7 @@ class Movie():
 
         new_link = Link(new_crossings)
         self.links.append(new_link)
-        
+
         # Computing chain map
 
         last_degree = self.last_degree 
@@ -373,7 +419,7 @@ class Movie():
 
         orientationnes = last_link.orientation()
         n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
-        n_plus =  0 if not crossings else len(orientationnes) - n_minus
+        n_plus =  0 if not crossings else ncrossings - n_minus
 
         for homological_degree in range(-n_minus, n_plus+1):
             domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
@@ -381,27 +427,27 @@ class Movie():
             m = matrix(self.ring, domain_size, image_size)
             for state_index in range(domain_size):
                 for image_state_index in range(image_size):
+                    
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree)][image_state_index]
 
-                    resolution_copy = list(state[0])
-                    resolution_copy.pop(index_of_crossing)
-                    if resolution_copy == list(image_state[0]):
+                    if image_state[0]== state[0][:-1]:
                     
                         remaining_circles1 = delete_circles(state, [loop_label, incoming_strand])
                         remaining_circles2 = delete_circles(image_state, [incoming_strand]) 
                         
                         if orientation == 1:
-                            if state[0][index_of_crossing] == 0 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
+                            if state[0][-1] == 0 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])) and (strand_sign(loop_label, state) == -1):
                                 m[state_index,image_state_index] = 1
                         else:
-                            if state[0][index_of_crossing] == 1 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
-                                m[state_index,image_state_index] = strand_sign(loop_label,state)
+                            if state[0][-1] == 1 and not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])):
+                                m[state_index,image_state_index] = strand_sign(loop_label,state) 
 
             chain_maps[homological_degree]= m.transpose()
 
         chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
         self.maps.append(chain_morphism)
+        
 
         if print_pd:
             print(new_crossings)
@@ -564,10 +610,9 @@ class Movie():
         Returns the last link.
         """
         
-        last_link = self.links[-1]
-        crossings = last_link.pd_code()
-        new_crossings = copy.deepcopy(crossings)
-        directions = last_link._directions_of_edges()
+        bad_crossings = self.links[-1].pd_code()
+        directions = self.links[-1]._directions_of_edges()
+        ncrossings = len(bad_crossings)
         
         # Recovering strands/crossings/parallel/over
 
@@ -590,23 +635,43 @@ class Movie():
 
         over = -1 if first_crossing1[0] == strand1 else 1
 
+        # Permuting order
+
+        index1,index2 = bad_crossings.index(first_crossing1), bad_crossings.index(second_crossing1)
+
+        permutation = mult_perm([{index1:ncrossings-2,ncrossings-2:index1},{index2:ncrossings-1,ncrossings-1:index2}])
+        self.permute(permutation, print_pd = False)
+
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)[:-2]
+        
+
         # Adjusting strands
-        
-        st1, st2 = strand1, strand1
-        j1,j2 =  crossings.index(directions[1][last1]), crossings.index(directions[1][last2])
-        
-        if not last1==strand2: 
-            st2 = strand2 
+
+        st1, st2 = strand1, strand2 
+
+        if (not last1 == strand2) and (not last2==strand1): # no collapse
+            
+            j1 = new_crossings.index(directions[1][last1])
+            j2 = new_crossings.index(directions[1][last2])
             new_crossings[j1][strand_index(new_crossings[j1], last1, 1)] = st1 
-        else:
-            if parallel==1:
-                raise ValueError("Impossible configuration detected. Are you sure your inputs are correct?")
-                
-        new_crossings[j2][strand_index(new_crossings[j2], last2, 1)] = st2
+            new_crossings[j2][strand_index(new_crossings[j2], last2, 1)] = st2
+            
+        elif (not last1 == strand2) and (last2==strand1) : # one collapse
+
+            j1 = new_crossings.index(directions[1][last1])
+            i2 = new_crossings.index(directions[0][strand2])
+            new_crossings[j1][strand_index(new_crossings[j1], last1, 1)] = st1 
+            new_crossings[i2][strand_index(new_crossings[i2], strand2, -1)] = st1             
+
         
-        indices_to_remove = sorted([crossings.index(first_crossing1), crossings.index(second_crossing1)], reverse=True)
-        for indexdel in indices_to_remove:
-            new_crossings.pop(indexdel)
+        elif (last1== strand2) and (not last2==strand1): # one collapse
+            
+            j2 = new_crossings.index(directions[1][last2])
+            new_crossings[j2][strand_index(new_crossings[j2], last2, 1)] = st1
+
+    
             
         self.current_min_index = 0 if not new_crossings else min([x for crossing in new_crossings for x in crossing]) 
 
@@ -625,7 +690,7 @@ class Movie():
 
         orientationnes = last_link.orientation()
         n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
-        n_plus =  0 if not crossings else len(orientationnes) - n_minus
+        n_plus =  0 if not crossings else ncrossings - n_minus
 
         for homological_degree in range(-n_minus, n_plus+1):
             domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
@@ -637,12 +702,8 @@ class Movie():
                     
                     state = departure_bases[(homological_degree, last_degree)][state_index]
                     image_state = final_bases[(homological_degree, last_degree)][image_state_index]
-
-                    resolution_copy = list(state[0])
-                    for indexdel in indices_to_remove:
-                        resolution_copy.pop(indexdel)
                         
-                    if resolution_copy == list(image_state[0]) and state[0][indices_to_remove[0]] + state[0][indices_to_remove[1]] == 1: # Appropriate states only
+                    if state[0][:-2] == image_state[0] and state[0][-1] + state[0][-2] == 1: # Appropriate states only
                     
                         remaining_circles1 = delete_circles(state, [strand1, mid2, last1])
                         remaining_circles2 = delete_circles(image_state, [st1, st2]) 
@@ -662,17 +723,102 @@ class Movie():
             print(new_crossings)
         return new_link
 
-        
-        return None
-
     # R3
 
-    def slide(self, something, something_else):
+    def slide(self, left_moving_strand, orientation_moving_strand, orientation_left_strand, orientation_right_strand, print_pd = True):
+        
         """
-        Truly painful
-        """
-        return None
+        Does a slide move. Perspective should be a slide from TOP to BOTTOM
 
+        INPUTS:
+        left_moving_strand: Strand index of the left part of the strand that will slide.
+        orientation_moving_strand: 1 if moving strand goes from left to right, -1 otherwise.
+        orientation_left_strand: 1 if (bottom) left strand goes from down to up, -1 otherwise.
+        orientation_right_strand: 1 if (bottom) right strand goes from down to up, -1 otherwise.
+        print_pd: If we want to output the pd code of the final link or not.
+        
+        OUTPUTS:
+        Returns the last link.
+        """
+        
+        directions = self.links[-1]._directions_of_edges()
+        bad_crossings = self.links[-1].pd_code()
+        ncrossings = len(bad_crossings)
+        
+        # Recovering strand numbers and crossings
+        # Strand notation: lms (left moving strand), mms (middle moving strand), rms (right moving strand), dls (down left strand), mls (middle left strand), uls (up left strand), drs, mrs, urs
+
+        lms = left_moving_strand
+        first_crossing = directions[ (1 if orientation_moving_strand==1 else 0) ][lms]
+        mms = first_crossing[(strand_index(first_crossing, lms, orientation_moving_strand) + 2) % 4]
+        second_crossing = directions[ (1 if orientation_moving_strand==1 else 0)][mms]
+        rms = second_crossing[(strand_index(second_crossing, mms, orientation_moving_strand) + 2) % 4]
+
+        over = -1 if ( (first_crossing[0] == lms and orientation_moving_strand==1) or (first_crossing[0]==mms and orientation_moving==-1) ) else 1
+        
+        ind1 = orientation_moving_strand if over==-1 else orientation_right_strand
+        ind2 = orientation_moving_strand if over==-1 else orientation_left_strand
+    
+        uls = first_crossing[(3 if ind1 == 1 else 1)-(1 if over==1 else 0)]  
+        mls = first_crossing[(1 if ind1 == 1 else 3)-(1 if over==1 else 0)]  
+        urs = second_crossing[(3 if ind2 == 1 else 1)-(1 if over==1 else 0)]  
+        mrs = second_crossing[(1 if ind2 == 1 else 3)-(1 if over==1 else 0)]  
+
+        third_crossing = directions[(1 if orientation_right_strand==-1 else 0)][mls]
+
+        drs = third_crossing[ (strand_index(third_crossing, mls, -orientation_right_strand) + 2) % 4]
+        dls = third_crossing[ (strand_index(third_crossing, mrs, -orientation_left_strand) + 2) % 4]
+        
+        type3 = 1 if third_crossing[1+orientation_right_strand] == mls else -1
+
+        # Adjusting crossings
+
+        index1, index2, index3 = bad_crossings.index(first_crossing), bad_crossings.index(second_crossing), bad_crossings.index(third_crossing) 
+        new_first_crossing, new_second_crossing, new_third_crossing = [],[],[] 
+
+        if over == 1:
+            new_first_crossing = [dls, mms, mls, lms] if orientation_left_strand == 1 else [mls, lms, dls, mms]
+            new_second_crossing = [drs, rms, mrs, mms] if orientation_right_strand == 1 else [mrs, mms, drs, rms]
+        else:
+            new_first_crossing = [lms, dls, mms, mls] if orientation_moving_strand == 1 else [mms, mls, lms, dls]
+            new_second_crossing = [mms, drs, rms, mrs] if orientation_moving_strand == 1 else [rms, mrs, mms, drs]
+
+        if type3 == 1:
+            new_third_crossing = [mrs, urs, uls, mls] if orientation_right_strand == 1 else [ uls, mls, mrs, urs]
+        else:
+            new_third_crossing = [mls, mrs, urs, uls] if orientation_left_strand == 1 else [urs, uls, mls, mrs]
+
+
+        permutation = {}
+        final_three_crossings = []
+
+        if over == 1 and type3 == 1: # TABLE A
+            permutation = mult_perm([{ncrossings-3:index1,index1:ncrossings-3},{ncrossings-2:index2,index2:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            final_three_crossings = [new_second_crossing,new_first_crossing,new_third_crossing]
+        elif over == -1 and type3 == 1: # TABLE B 
+            permutation = mult_perm([{ncrossings-3:index2,index2:ncrossings-3},{ncrossings-2:index1,index1:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            final_three_crossings = [new_first_crossing,new_second_crossing,new_third_crossing]
+        elif over==1 and type3 == -1: # TABLE C
+            permutation = mult_perm([{ncrossings-3:index1,index1:ncrossings-3},{ncrossings-2:index2,index2:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            final_three_crossings = [new_second_crossing,new_first_crossing,new_third_crossing]
+        else:                        # TABLE D
+            permutation = mult_perm([{ncrossings-3:index2,index2:ncrossings-3},{ncrossings-2:index1,index1:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            final_three_crossings = [new_first_crossing,new_second_crossing,new_third_crossing]
+        
+        self.permute(permutation, print_pd=False)
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        new_crossings = copy.deepcopy(crossings)[:-3] + final_three_crossings    
+
+        new_link = Link(new_crossings)
+        self.links.append(new_link)
+        
+        # Computing chain map
+
+        if print_pd:
+            print(new_crossings)
+
+        return new_link 
 
 
     # Saddle moves
@@ -718,7 +864,7 @@ class Movie():
         self.last_degree = self.last_degree - 1
 
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree-1, True, ring=self.ring)
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree-1, True, self.ring)
 
         chain_maps = {}
         
@@ -745,11 +891,13 @@ class Movie():
             chain_maps[homological_degree]= m.transpose()
 
         
-        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
-        self.maps.append(chain_morphism)
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
 
+
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        self.maps.append(chain_morphism)
+        
         if print_pd:
             print(new_crossings)
         return new_link
@@ -879,7 +1027,8 @@ class Movie():
         if loop_crossing != directions[1][loop_label]:
             raise ValueError("Invalid input: Must input the label's strand pd label.")
 
-        if not ((sum(loop_crossing)/2 - (loop_label)) in loop_crossing) or len(crossings) == 1: 
+        other_potential_loop = sum(loop_crossing)/2 - (loop_label)
+        if not (other_potential_loop != loop_crossing and other_potential_loop in loop_crossing) or len(crossings) == 1: 
             raise ValueError("Invalid input: Input needs to be a twisted unknot. Link should have >= 2 crossings.")
 
         # Determining incoming and outgoing strands + orientation + strand_type
@@ -919,7 +1068,7 @@ class Movie():
         last_degree = self.last_degree 
         self.last_degree = last_degree + 1
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True) 
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True, ring=self.ring) 
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
             
@@ -990,6 +1139,7 @@ class Movie():
 
 
     def reset_plot_index(self):
+        
         """
         Resets plot_index.
 
@@ -999,13 +1149,92 @@ class Movie():
         OUTPUTS:
         None
         """
+        
         self.plot_index = 0
                 
         
+    def permute(self, permutation, print_pd=True):
+        
+        """
+        Computes the chain isomorphism on the canonical Khovanov chain complex induced by a permutation on the order of the crossings of the last link.
+        
+        INPUTS:
+        permutation: A permutation sigma given by a dictionary of the form {x:y} where y = sigma(x). Only need to enter entries that change.
+    
+        OUTPUT:
+        The new link.
+        
+        REMARKS: Assume that the dictionary 'permutation' is valid.
+        """
+        
+        last_link = self.links[-1]
+        crossings = last_link.pd_code()
+        ncross = len(crossings)
+        invperm = {value:key for key,value in permutation.items()}
+        new_crossings = [ [s for s in (crossings[index] if (index not in invperm) else crossings[invperm[index]]) ]  for index in range(ncross)]
 
+        new_link = Link(new_crossings)
+
+        self.links[-1] = new_link
+
+        # Computing chain map
+
+        if self.maps:
+
+            last_degree = self.last_degree 
+            departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+            final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
+            
+            chain_maps = {}
+    
+            orientationnes = last_link.orientation()
+            n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+            n_plus =  0 if not crossings else len(orientationnes) - n_minus
+            cache = {}
+            for homological_degree in range(-n_minus, n_plus+1):
+                
+                domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+                image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
+                
+                m = matrix(self.ring, domain_size, image_size)
+                
+                for state_index in range(domain_size):
+                    for image_state_index in range(image_size):
+                        
+                        state = departure_bases[(homological_degree, last_degree)][state_index]
+                        image_state = final_bases[(homological_degree, last_degree)][image_state_index]
+
+                        if state[0] == tuple(( (  ( image_state[0][i] ) if ( i not in permutation ) else (image_state[0][permutation[i]])   ) for i in range(ncross))):
+                            if not (state[1].intersection(image_state[2]) or state[2].intersection(image_state[1])):
+                                if state[0] in cache:
+                                    m[state_index,image_state_index] = cache[state[0]]
+                                else:
+                                    total_factor = 1
+                                    for a in range(ncross):
+                                        for b in range(a+1,ncross):
+                                            if state[0][a] == state[0][b] == 1 and (a if a not in permutation else permutation[a]) > (b if b not in permutation else permutation[b]):
+                                                total_factor *= -1 
+                                    cache[state[0]] = total_factor 
+                                    m[state_index, image_state_index] = total_factor 
+                                                
+                                        
+                                    
+    
+                chain_maps[homological_degree]= m.transpose()
+
+    
+            chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+            self.complexes[-1] = final_complex 
+            self.bases[-1] = final_bases
+            self.maps[-1] = chain_morphism * self.maps[-1] 
+            
+        if print_pd:
+            print(new_crossings)
+        return new_link
+        
+        
 
 # KHOVANOV HOMOLOGY 
-
 
 def simplified_states(link):
     
@@ -1087,12 +1316,17 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
                     difs = [index for index, value in enumerate(V1[0])
                             if value != V20[index]]
                     if len(difs) == 1 and not (V2[2].intersection(V1[1]) or V2[1].intersection(V1[2])):
-                        m[ii, jj] = (-1)**sum(V2[0][x] for x in range(0,difs[0]))
+                         # m[ii, jj] = (-1)**sum(V1[0][x] for x in range(difs[0] + 1, ncross))
+                        m[ii,jj] = (-1)**sum(V1[0][x] for x in range(difs[0]))
         else:
             m = matrix(ring, len(bij), 0)
         complexes[i] = m.transpose()
         if (i - 1, j) not in bases:
             complexes[i - 1] = matrix(ring, len(bases[(i, j)]), 0)
     if base_output:
-        return (ChainComplex(complexes,base_ring=ring check=True), bases)
-    return ChainComplex(complexes,base_ring=ring check=True)
+        return (ChainComplex(complexes, base_ring=ring, check=True), bases)
+    return ChainComplex(complexes, base_ring=ring,check=True)
+
+
+
+    
