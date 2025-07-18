@@ -1327,11 +1327,11 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
         return (ChainComplex(complexes, base_ring=ring, check=True), bases)
     return ChainComplex(complexes, base_ring=ring,check=True)
 
-#USER SIMPLIFICATIONS
+#UNDERSTANDING THE COBORDISM
 
-def image_of_one(movie):
+def image_of_one(movie, qdegree):
     """
-    given a cobordism, computes the image of 1
+    given a cobordism, computes the image of 1 in homological degree 0 and the user's choice of qdegree
 
     INPUTS:
     movie (Movie): the movie diagram for the cobordism
@@ -1358,7 +1358,10 @@ def image_of_one(movie):
 
     for j in nonzero_indices:
         #find out which labels are positive or negative
-        labels = movie.bases[-1][(0,-1)][j][0];
+        if (0, qdegree) not in movie.bases[-1].keys():
+            return 0
+            
+        labels = movie.bases[-1][(0,qdegree)][j][0];
         circles = movie.links[-1].pd_code();
 
         negative_circles = []
@@ -1373,5 +1376,3 @@ def image_of_one(movie):
         solutions.append((results_list[j], negative_circles, positive_circles));
     
     return solutions
-
-    
