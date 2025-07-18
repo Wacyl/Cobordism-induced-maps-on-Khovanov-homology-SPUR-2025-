@@ -1327,6 +1327,51 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
         return (ChainComplex(complexes, base_ring=ring, check=True), bases)
     return ChainComplex(complexes, base_ring=ring,check=True)
 
+#USER SIMPLIFICATIONS
 
+def image_of_one(movie):
+    """
+    given a cobordism, computes the image of 1
+
+    INPUTS:
+    movie (Movie): the movie diagram for the cobordism
+    
+    OUTPUTS:
+    solutions (list): a list of tuples where each tuple contains:
+        the coefficient of the image, a list of PD notation for loops marked with v_-, and a list of PD notation for loops marked with v_+
+
+    """
+    #get the coefficient for the Khovanov homology in the image of 1
+    solutions = []
+    length = len(movie.maps) - 1;
+    total_chain = movie.maps[length]._matrix_dictionary[0]
+    for i in range(length):
+        total_chain = total_chain*movie.maps[length - 1-i]._matrix_dictionary[0]
+
+    results_list = total_chain.str().split('\n');
+    
+    #find the indices of the right coefficients
+    nonzero_indices = [];
+    for i in range(len(results_list)):
+        if results_list[i] != '[0]':
+            nonzero_indices.append(i);
+
+    for j in nonzero_indices:
+        #find out which labels are positive or negative
+        labels = movie.bases[-1][(0,-1)][j][0];
+        circles = movie.links[-1].pd_code();
+
+        negative_circles = []
+        positive_circles = []
+
+        for n in range(len(labels)):
+            if labels[n] == 0:
+                negative_circles.append(circles[n])
+            else:
+                positive_circles.append(circles[n])
+
+        solutions.append((results_list[j], negative_circles, positive_circles));
+    
+    return solutions
 
     
