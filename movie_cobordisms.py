@@ -1286,47 +1286,6 @@ class Movie():
         if print_pd:
             print(new_crossings)
         return new_link
-
-
-
-
-
-    # Plotting 
-
-
-
-    def next_link(self):
-
-        """
-        Returns the next link in chain based on plot_index. If at the end, circles back to the start.
-        Remark: For plotting purposes, we take the absolute value of all PD strands. Hence the movie should only use negative strands.
-
-        INPUTS:
-        None
-
-        OUTPUTS:
-        Next link in the sequence in absolute value of strands.
-        """
-        
-        actual_link = self.links[self.plot_index]
-        abs_link = Link([[abs(x) for x in crossing] for crossing in actual_link.pd_code()]) # no cache, fast to compute
-        self.plot_index = (self.plot_index + 1) % len(self.links)
-        return abs_link
-
-
-    def reset_plot_index(self):
-        
-        """
-        Resets plot_index.
-
-        INPUTS:
-        None
-
-        OUTPUTS:
-        None
-        """
-        
-        self.plot_index = 0
                 
         
     def permute(self, permutation, print_pd=True):
@@ -1417,10 +1376,83 @@ class Movie():
         if print_pd:
             print(new_crossings)
         return new_link
+
         
+    # Chain map push
+
+    def push(self, homological_degree, vector):
+
+        """
+        Returns the image of a vector by pushing it through the chain maps as well as the basis needed.
+
+        INPUTS:
+        homological_degree: The homological degree of the starting vector.
+        vector: A vector object in SageMath.
+
+        OUTPUTS:
+        A vector representing the output through the chain maps, as well as printing the basis needed to read it.
+        """
+
+        current_vec = vector 
+        
+        for func in self.maps:
+            current_vec = func._matrix_dictionary[homological_degree] * current_vec 
+
+        print(f"Outputted vector: {current_vec}\n")
+        print("Base in order to read output:\n---------------")
+        count = 0
+        for state in self.bases[-1][(homological_degree,self.last_degree)]:
+            coefficient = current_vec[count] 
+            if coefficient != 0:
+                print(f"State:{state}\nCoefficient:{coefficient}\n---------------")
+
+            count+=1
+
+        return current_vec
+        
+            
+
+
+
+    # Plotting 
+
+
+
+    def next_link(self):
+
+        """
+        Returns the next link in chain based on plot_index. If at the end, circles back to the start.
+        Remark: For plotting purposes, we take the absolute value of all PD strands. Hence the movie should only use negative strands.
+
+        INPUTS:
+        None
+
+        OUTPUTS:
+        Next link in the sequence in absolute value of strands.
+        """
+        
+        actual_link = self.links[self.plot_index]
+        abs_link = Link([[abs(x) for x in crossing] for crossing in actual_link.pd_code()]) # no cache, fast to compute
+        self.plot_index = (self.plot_index + 1) % len(self.links)
+        return abs_link
+
+
+    def reset_plot_index(self):
+        
+        """
+        Resets plot_index.
+
+        INPUTS:
+        None
+
+        OUTPUTS:
+        None
+        """
+        
+        self.plot_index = 0      
         
 
-# KHOVANOV HOMOLOGY 
+# KHOVANOV HOMOLOGY HELPER FUNCTIONS
 
 def simplified_states(link):
     
