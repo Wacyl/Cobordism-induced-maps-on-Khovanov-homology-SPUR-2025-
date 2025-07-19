@@ -434,7 +434,7 @@ class Movie():
 
         last_degree = self.last_degree 
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
             
@@ -573,7 +573,7 @@ class Movie():
 
         last_deg = self.last_degree
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_deg, True, self.ring)
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_deg, True, ring=self.ring)
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
 
@@ -705,7 +705,7 @@ class Movie():
 
         last_degree = self.last_degree 
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
             
@@ -842,7 +842,7 @@ class Movie():
 
         last_degree = self.last_degree 
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
         self.complexes.append(final_complex)
         self.bases.append(final_bases)
             
@@ -1040,7 +1040,7 @@ class Movie():
         self.last_degree = self.last_degree - 1
 
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree-1, True, self.ring)
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree-1, True, ring=self.ring)
 
         chain_maps = {}
         
@@ -1125,7 +1125,7 @@ class Movie():
         last_degree = self.last_degree
         self.last_degree = last_degree + 1       
         departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True, self.ring)
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree+1, True, ring=self.ring)
         
         if was_unknot:
             self.complexes[-1]= (final_complex)
