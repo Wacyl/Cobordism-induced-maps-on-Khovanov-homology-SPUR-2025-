@@ -3,44 +3,43 @@ import copy
 
 # HELPER FUNCTIONS
 
-def mult_perm(lperms):
+def canonical_perm(n, mappings):
 
     """
-    Given a list of permutations as dictionnaries, multiplies them in the given order.
+    Given a list of mappings, recovers a permutation {x:y} such that the mappings are satisfied by the permutation. 
 
     INPUTS:
-    lperms: A list of dictionnaries representing permutations.
+    n: Input length (permutations of {0,1,ldots,n-1}
+    mappings: A dictionnary of the form {x:y} where we desire that x is mapped to y
 
     OUTPUTS:
-    The permutation represented by a dictionnary given by the (ordered) product of the permutations in the list.
+    A dictionnary {x:y} representing a permutation where x is mapped to y
+
+    REMARK: This assumes the pairing in mappings is injective.
     """
-    if len(lperms) == 1:
-        return lperms[0] 
-
-    if len(lperms) == 2:
-        
-        start = lperms[0]
-        end = lperms[1]
-        n = max(set(start.keys()).union(set(end.keys())))+1
-
-        new_perm = {}
-        
-        for index in range(n):
-            if index in end:
-                image = end[index]
-                if image in start:
-                    image = start[image]
-
-                new_perm[index]= image
-            else:
-                if index in start:
-                    new_perm[index] = start[index]
-
-        return new_perm
+    permutation = {} 
+    keys,values = mappings.keys(), mappings.values()
+    l0,l1 = [],[] 
+    
+    for i in range(n):
+        if i not in keys:
+            l0.append(i)
+        if i not in values:
+            l1.append(i)
             
+    if len(l0) != len(l1):
+        raise ValueError("mapping given is not injective")
 
-    new_list = lperms[:-2] + [mult_perm([lperms[-2],lperms[-1]])]
-    return mult_perm(new_list)
+    for index in range(len(l0)):
+        inp,out = l0[index],l1[index]
+        if inp!= out:
+            permutation[inp] = out 
+
+    for k in keys:
+        permutation[k]= mappings[k] 
+
+    return permutation
+    
     
 
 def strand_index(crossing, strand, direction):
@@ -81,6 +80,38 @@ def strand_index(crossing, strand, direction):
 
     raise ValueError("get your crossings right or smth")
 
+def strand_circle(strand, state):
+
+    """
+    Given an enhanced Kauffman state, return the sign of the circle having "strand" in its boundary.
+    WARNING: This assumes the strand indeed exists in the state's notation. Furthermore, if state is a state of the unknot, it will return
+    the sign of the unknot's unique circle.
+
+    INPUTS:
+    strand: The strand number in PD notation.
+    state: The enhanced Kauffman state.
+
+    OUTPUTS:
+    A tuple (c,sign) where c is the circle containing the strand in the enhanced Kauffman state, 
+    and sign is the sign of that circle.
+    
+    """
+
+    if not len(state[0]):
+        return (tuple(),-1) if len(state[1]) else (tuple(),1)
+
+    for circle in state[1]:
+        for branch in circle:
+            if strand in branch:
+                return (circle,-1)
+
+    for circle in state[2]:
+        for branch in circle:
+            if strand in branch:
+                return (circle,1)
+
+    raise ValueError("Branch not in state")
+
 
 def strand_sign(strand, state):
 
@@ -97,15 +128,7 @@ def strand_sign(strand, state):
     1 for a positive circle containing the strand, -1 for a negative one.  
     """
 
-    if not len(state[0]):
-        return -1 if len(state[1]) else 1
-
-    for circle in state[1]:
-        for branch in circle:
-            if strand in branch:
-                return -1
-
-    return 1
+    return strand_circle(strand, state)[1]
 
 def delete_circles(state, strands):
 
@@ -392,7 +415,7 @@ class Movie():
 
         # Adjusting strands
         index_of_crossing = bad_crossings.index(loop_crossing)
-        self.permute({index_of_crossing : ncrossings-1, ncrossings-1:index_of_crossing}, print_pd = False)
+        self.permute(canonical_perm(ncrossings, {index_of_crossing:ncrossings-1}), print_pd = False)
         last_link = self.links[-1]
         crossings = last_link.pd_code()
         new_crossings = copy.deepcopy(crossings)
@@ -452,7 +475,7 @@ class Movie():
         if print_pd:
             print(new_crossings)
         return new_link
-
+ 
     
 
     #R2
@@ -639,7 +662,7 @@ class Movie():
 
         index1,index2 = bad_crossings.index(first_crossing1), bad_crossings.index(second_crossing1)
 
-        permutation = mult_perm([{index1:ncrossings-2,ncrossings-2:index1},{index2:ncrossings-1,ncrossings-1:index2}])
+        permutation = canonical_perm(ncrossings, {index1:ncrossings-2, index2:ncrossings-1})
         self.permute(permutation, print_pd = False)
 
         last_link = self.links[-1]
@@ -776,6 +799,7 @@ class Movie():
         index1, index2, index3 = bad_crossings.index(first_crossing), bad_crossings.index(second_crossing), bad_crossings.index(third_crossing) 
         new_first_crossing, new_second_crossing, new_third_crossing = [],[],[] 
 
+        
         if over == 1:
             new_first_crossing = [dls, mms, mls, lms] if orientation_left_strand == 1 else [mls, lms, dls, mms]
             new_second_crossing = [drs, rms, mrs, mms] if orientation_right_strand == 1 else [mrs, mms, drs, rms]
@@ -793,18 +817,19 @@ class Movie():
         final_three_crossings = []
 
         if over == 1 and type3 == 1: # TABLE A
-            permutation = mult_perm([{ncrossings-3:index1,index1:ncrossings-3},{ncrossings-2:index2,index2:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            can_perm_arg = {index1:ncrossings-3,index2:ncrossings-2,index3:ncrossings-1}
             final_three_crossings = [new_second_crossing,new_first_crossing,new_third_crossing]
         elif over == -1 and type3 == 1: # TABLE B 
-            permutation = mult_perm([{ncrossings-3:index2,index2:ncrossings-3},{ncrossings-2:index1,index1:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            can_perm_arg = {index2:ncrossings-3,index1:ncrossings-2,index3:ncrossings-1}
             final_three_crossings = [new_first_crossing,new_second_crossing,new_third_crossing]
         elif over==1 and type3 == -1: # TABLE C
-            permutation = mult_perm([{ncrossings-3:index1,index1:ncrossings-3},{ncrossings-2:index2,index2:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            can_perm_arg = {index1:ncrossings-3,index2:ncrossings-2,index3:ncrossings-1}
             final_three_crossings = [new_second_crossing,new_first_crossing,new_third_crossing]
         else:                        # TABLE D
-            permutation = mult_perm([{ncrossings-3:index2,index2:ncrossings-3},{ncrossings-2:index1,index1:ncrossings-2},{ncrossings-1:index3,index3:ncrossings-1}])
+            can_perm_arg = {index2:ncrossings-3,index1:ncrossings-2,index3:ncrossings-1}
             final_three_crossings = [new_first_crossing,new_second_crossing,new_third_crossing]
-        
+
+        permutation = canonical_perm(ncrossings, can_perm_arg)
         self.permute(permutation, print_pd=False)
         last_link = self.links[-1]
         crossings = last_link.pd_code()
@@ -815,10 +840,161 @@ class Movie():
         
         # Computing chain map
 
+        last_degree = self.last_degree 
+        departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True) 
+        self.complexes.append(final_complex)
+        self.bases.append(final_bases)
+            
+        chain_maps = {}
+
+        orientationnes = last_link.orientation()
+        n_minus = 0 if not crossings else len([x for x in orientationnes if x == -1])
+        n_plus =  0 if not crossings else ncrossings - n_minus
+
+        for homological_degree in range(-n_minus, n_plus+1):
+            domain_size = 0 if ((homological_degree, last_degree) not in departure_bases) else len(departure_bases[(homological_degree, last_degree)]) 
+            image_size = 0 if ((homological_degree, last_degree) not in final_bases) else len(final_bases[(homological_degree, last_degree)]) 
+            m = matrix(self.ring, domain_size, image_size)
+            
+            for state_index in range(domain_size):
+                for image_state_index in range(image_size):
+                    
+                    state = departure_bases[(homological_degree, last_degree)][state_index]
+                    image_state = final_bases[(homological_degree, last_degree)][image_state_index]
+                        
+                    if state[0][:-3]== image_state[0][:-3]: # Only consider appropriate states
+
+                        remaining_circles1 = delete_circles(state, [uls, mls, dls, urs, mrs, drs, lms, mms, rms])
+                        remaining_circles2 = delete_circles(image_state, [uls, mls, dls, urs, mrs, drs, lms, mms, rms])
+
+                        if not (remaining_circles1[0].intersection(remaining_circles2[1]) or remaining_circles1[1].intersection(remaining_circles2[0])): # Checks that signs of unrelated circles are the same
+
+                            coefficient = 0
+
+                            uls1 = strand_circle(uls, state) 
+                            mls1 = strand_circle(mls, state) 
+                            dls1 = strand_circle(dls, state) 
+                            urs1 = strand_circle(urs, state) 
+                            mrs1 = strand_circle(mrs, state) 
+                            drs1 = strand_circle(drs, state) 
+                            lms1 = strand_circle(lms, state) 
+                            mms1 = strand_circle(mms, state) 
+                            rms1 = strand_circle(rms, state) 
+
+                            uls2 = strand_circle(uls, image_state) 
+                            mls2 = strand_circle(mls, image_state) 
+                            dls2 = strand_circle(dls, image_state) 
+                            urs2 = strand_circle(urs, image_state) 
+                            mrs2 = strand_circle(mrs, image_state) 
+                            drs2 = strand_circle(drs, image_state) 
+                            lms2 = strand_circle(lms, image_state) 
+                            mms2 = strand_circle(mms, image_state) 
+                            rms2 = strand_circle(rms, image_state) 
+
+                            x,fx = state[0][-3:], image_state[0][-3:]
+                                
+                            if over == 1 and type3 == 1: # TABLE A
+                                if x==fx==(0,0,0) and uls1[1] == uls2[1] and urs1[1] == urs2[1] and drs1[1]==drs2[1]:
+                                    coefficient=1
+                                if x==(1,0,0) and fx==(0,1,0) and uls1[1]==uls2[1] and dls1[1] == dls2[1] and drs1[1] == drs2[1]:
+                                    coefficient = 1
+                                if x==(1,0,0) and fx==(0,0,1) and uls1[1]==uls2[1] and dls1[1] == dls2[1] and drs1[1] == drs2[1]:
+                                    coefficient = 1
+                                if x==(0,1,0) and fx==(1,0,0) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1 
+                                if x==fx==(1,1,0) and uls1[1]==uls2[1] and dls1[1]==dls2[1] and urs1[1]==urs2[1]:
+                                    coefficient = -1
+                                if x==(1,1,0) and fx==(0,1,1) and mms2[1]==1 and ( (dls1[1]==dls2[1]) or (dls1[0] in {drs1[0],urs1[0]}) ):
+                                    coefficient = 1
+                                if x==fx==(1,0,1) and uls1[1]==uls2[1] and rms1[1]==rms2[1] and drs1[1]==drs2[1]:
+                                    coefficient=-1
+                                if x==(1,0,1) and fx==(0,1,1) and mms2[1]==1 and ( (uls1[1]==uls2[1]) or (uls1[0] in {rms1[0], dls1[0]})):
+                                    coefficient=-1
+                                if x==(0,1,1) and fx==(1,0,1) and mms1[1] == -1 and ( (drs1[1]==drs2[1]) or (drs1[0] in {uls1[0],urs1[0]})):
+                                    coefficient = 1 
+                                if x==fx==(0,1,1) and mms1[1]==-1 and mms2[1] ==1:
+                                    coefficient = 1
+                                    
+                            elif over == -1 and type3 == 1: # TABLE B 
+                                if x==fx==(0,0,0) and uls1[1] == uls2[1] and urs1[1] == urs2[1] and dls1[1]==dls2[1]:
+                                    coefficient = 1
+                                if x==(1,0,0) and fx==(0,1,0) and uls1[1]==uls2[1] and dls1[1] == dls2[1] and drs1[1] == drs2[1]:
+                                    coefficient = 1
+                                if x==(1,0,0) and fx==(0,0,1) and uls1[1]==uls2[1] and dls1[1] == dls2[1] and drs1[1] == drs2[1]:
+                                    coefficient = 1
+                                if x==(0,1,0) and fx==(1,0,0) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1 
+                                if x==fx==(1,1,0) and uls1[1]==uls2[1] and drs1[1]==drs2[1] and urs1[1]==urs2[1]:
+                                    coefficient = -1
+                                if x==(1,1,0) and fx==(0,1,1) and mms2[1]==1 and ( (drs1[1]==drs2[1]) or (drs1[0] in {dls1[0],uls1[0]}) ):
+                                    coefficient = 1
+                                if x==fx==(1,0,1) and uls1[1]==uls2[1] and rms1[1]==rms2[1] and drs1[1]==drs2[1]:
+                                    coefficient=-1
+                                if x==(1,0,1) and fx==(0,1,1) and mms2[1]==1 and ( (uls1[1]==uls2[1]) or (uls1[0] in {rms1[0], dls1[0]})):
+                                    coefficient=-1
+                                if x==(0,1,1) and fx==(1,0,1) and mms1[1] == -1 and ( (drs1[1]==drs2[1]) or (drs1[0] in {uls1[0],urs1[0]})):
+                                    coefficient = 1 
+                                if x==fx==(0,1,1) and mms1[1]==-1 and mms2[1] ==1:
+                                    coefficient = 1                 
+                                
+                            elif over==1 and type3 == -1: # TABLE C
+                                if x==fx==(1,0,0) and uls1[1] == uls2[1] and rms1[1] == rms2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1 
+                                elif x==(1,0,0) and fx==(0,1,0) and mms2[1] == 1 and ( (uls1[1] == uls2[1])   or  (uls1[0] in {rms1[0], dls1[0]}) ):
+                                    coefficient = 1 
+                                elif x==(0,1,0) and fx==(1,0,0) and mms1[1] == -1 and ( (dls1[1]==dls2[1]) or (dls1[0] in {uls1[0], urs1[0]}) ) :
+                                    coefficient = -1 
+                                elif x==fx==(0,1,0) and mms1[1]==-1 and mms2[1] == 1:
+                                    coefficient = -1 
+                                elif x==(0,1,0) and fx==(0,0,1) and mms1[1] == -1 and ( (uls1[1]==uls2[1]) or ( uls1[0] in {urs1[0],dls1[0]} )) :
+                                    coefficient = -1  
+                                elif x==fx==(0,0,1) and uls1[1]== uls2[1] and dls1[1]==dls2[1] and drs1[1] == drs2[1]:
+                                    coefficient = 1 
+                                elif x==(1,1,0) and fx==(1,0,1) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1 
+                                elif x==(1,0,1) and fx==(0,1,1) and uls1[1]==uls2[1] and dls1[1]==dls2[1] and drs1[1]==drs2[1]:
+                                    coefficient = 1
+                                elif x==(0,1,1) and fx==(1,0,1) and dls1[1]==dls2[1] and uls1[1]==uls2[1] and urs1[1] == urs2[1]:
+                                    coefficient=1 
+                                elif x==fx==(1,1,1) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and dls1[1]==dls2[1]:
+                                    coefficient = -1
+                            else:                        # TABLE D
+                                if x==fx==(1,0,0) and uls1[1] == uls2[1] and rms1[1] == rms2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1
+                                elif x==(1,0,0) and fx==(0,1,0) and mms2[1] == 1 and ( (uls1[1] == uls2[1])   or  (uls1[0] in {rms1[0], dls1[0]}) ):
+                                    coefficient = 1 
+                                elif x==(0,1,0) and fx==(1,0,0) and mms1[1] == -1 and ( (dls1[1]==dls2[1]) or (dls1[0] in {uls1[0], urs1[0]}) ) :
+                                    coefficient = -1 
+                                elif x==fx==(0,1,0) and mms1[1]==-1 and mms2[1] == 1:
+                                    coefficient = -1 
+                                elif x==(0,1,0) and fx==(0,0,1) and mms1[1] == -1 and ( (urs1[1]==urs2[1]) or ( urs1[0] in {uls1[0],dls1[0]} )) :
+                                    coefficient = -1  
+                                elif x==fx==(0,0,1) and uls1[1]== uls2[1] and dls1[1]==dls2[1] and urs1[1] == urs2[1]:
+                                    coefficient = 1 
+                                elif x==(1,1,0) and fx==(1,0,1) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and dls1[1] == dls2[1]:
+                                    coefficient = 1 
+                                elif x==(1,0,1) and fx==(0,1,1) and uls1[1]==uls2[1] and dls1[1]==dls2[1] and drs1[1]==drs2[1]:
+                                    coefficient = 1
+                                elif x==(0,1,1) and fx==(1,0,1) and dls1[1]==dls2[1] and uls1[1]==uls2[1] and urs1[1] == urs2[1]:
+                                    coefficient=1 
+                                elif x==fx==(1,1,1) and uls1[1]==uls2[1] and urs1[1]==urs2[1] and drs1[1]==drs2[1]:
+                                    coefficient = -1                            
+
+                            m[state_index, image_state_index] = coefficient
+    
+                                    
+                            
+
+            chain_maps[homological_degree]= m.transpose()
+        
+        chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
+        self.maps.append(chain_morphism)
+
         if print_pd:
             print(new_crossings)
 
-        return new_link 
+        return new_link
 
 
     # Saddle moves
@@ -1176,14 +1352,16 @@ class Movie():
         new_link = Link(new_crossings)
 
         self.links[-1] = new_link
-
+        
+        last_degree = self.last_degree
         # Computing chain map
+        
+        final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
 
         if self.maps:
-
-            last_degree = self.last_degree 
+ 
             departure_complex, departure_bases = self.complexes[-1], self.bases[-1]
-            final_complex, final_bases = height_khovanov_chain_complex(new_link, last_degree, True, ring=self.ring) 
+  
             
             chain_maps = {}
     
@@ -1210,9 +1388,15 @@ class Movie():
                                     m[state_index,image_state_index] = cache[state[0]]
                                 else:
                                     total_factor = 1
-                                    for a in range(ncross):
-                                        for b in range(a+1,ncross):
-                                            if state[0][a] == state[0][b] == 1 and (a if a not in permutation else permutation[a]) > (b if b not in permutation else permutation[b]):
+                                    one_resolutions = []
+                                    for i in range(ncross):
+                                        if state[0][i]== 1:
+                                            one_resolutions.append(i)
+                                    num_ones = len(one_resolutions)
+                                    for a_index in range(num_ones):
+                                        for b_index in range(a_index+1,num_ones):
+                                            a_val,b_val = one_resolutions[a_index], one_resolutions[b_index]
+                                            if (a_val if a_val not in permutation else permutation[a_val]) > (b_val if b_val not in permutation else permutation[b_val]):
                                                 total_factor *= -1 
                                     cache[state[0]] = total_factor 
                                     m[state_index, image_state_index] = total_factor 
@@ -1224,9 +1408,11 @@ class Movie():
 
     
             chain_morphism = Hom(departure_complex,final_complex)(chain_maps)
-            self.complexes[-1] = final_complex 
-            self.bases[-1] = final_bases
+        
             self.maps[-1] = chain_morphism * self.maps[-1] 
+
+        self.complexes[-1] = final_complex 
+        self.bases[-1] = final_bases
             
         if print_pd:
             print(new_crossings)
