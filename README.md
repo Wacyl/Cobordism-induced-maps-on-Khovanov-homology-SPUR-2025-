@@ -9,9 +9,9 @@ I) CONVENTIONS:
 ---------------
 1) As per Sagemath's documentation for 10.1>=, the planar diagram notation goes counterclockwise (instead of clockwise in older versions)
 2) The chain complex who'se homology is invariant under R1/R2/R3 for Links is the one presented in Bar-Natan's paper for a categorification of the Jones polynomial.[1]
-3) For ease of implementation, we allow planar diagram notations to not be continuous (eg: [5,10,10,5] represents the unknot with a twist).
-4) TYPO : For the _enhanced_states method in the Link object in SageMath, the second tuple represents negative labelled circles and the third tuple **positive** labelled circles.
-
+3) TYPO : For the _enhanced_states method in the Link object in SageMath, the second tuple represents negative labelled circles and the third tuple positive labelled circles.
+4) The chain maps used for the homotopy equivalences of R1/R2/R3 are described in the SPUR paper.
+   
 II) ENHANCED STATES EXPLANATION: 
 --------------------------------
 Computation of the Khovanov homology for an arbitrary link in Sagemath is done by computing the enhanced Kauffman states of the link, as described in [2] by Oleg Viro.
@@ -21,26 +21,23 @@ The signs are determined by the usual Bar-Natan's convention [1] (i.e (-1)^{# of
 
 III) REIDEMEISTER MOVES:
 -----------------------
-TODO
-
+R1 : Given by the twist/untwist method.
+R2 : Given by the poke/unpoke method.
+R3 : Given by the slide method, done from top to bottom. The convention for the homotopy equivalence is described in the SPUR paper.
 
 IV) BIRTH/DEATH:
 ---------------
-TODO
+Birth move: Given by the birth method. Will birth a twisted unknot.
 
+Death move: Given by the death method. Only kills twisted loops.
+(note to self: fix death by permuting last crossing to the end)
 
 
 V) SADDLE MOVES:
 ---------------
-TODO
+This move is given by the saddle method and joins two strands. It keeps the label of the incoming strand the same and changes where it goes to the crossing in which the second strand goes to.
 
-
-
-VI) OTHER DETAILS:
-------------------
-TODO
-
-
+(note to self: fix pinch in case of unknot / same strand)
 
 
 VII) REFERENCES:
