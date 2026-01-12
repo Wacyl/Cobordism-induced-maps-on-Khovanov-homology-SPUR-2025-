@@ -185,12 +185,12 @@ class Movie():
 
     Explanation of methods:
     -twist : Does an R1 move on a strand.
-    -untwist : Undo an R1 move (TODO)
+    -untwist : Undo an R1 move 
     -poke : Does an R2 move
-    -unpoke : Undo an R2 move (TODO)
-    -slide : Does an R3 move (TODO)
-    -birth : Birthes a twist (TODO)
-    -death : Kills a twist (TODO)
+    -unpoke : Undo an R2 move 
+    -slide : Does an R3 move 
+    -birth : Birthes a twist 
+    -death : Kills a twist 
     -saddle : Does a saddle move on a strand
     -next_link : Outputs the (absolute) next link. By absolute, I mean that all PD notation's signs are taken in absolute values for plotting purposes.
     -reset_plot_index : Sets plot_index back to 0.
@@ -226,7 +226,7 @@ class Movie():
 
     Repeatedly running movie.next_link().plot() will plot the movie (in Jupyter for example)
 
-    Remark: ONLY use negative strands in PD notation.
+    Remark: We take the convention of using negative integers for strands in PD notation.
     """
 
     # DEFINITION
@@ -777,7 +777,7 @@ class Movie():
         second_crossing = directions[ (1 if orientation_moving_strand==1 else 0)][mms]
         rms = second_crossing[(strand_index(second_crossing, mms, orientation_moving_strand) + 2) % 4]
 
-        over = -1 if ( (first_crossing[0] == lms and orientation_moving_strand==1) or (first_crossing[0]==mms and orientation_moving==-1) ) else 1
+        over = -1 if ( (first_crossing[0] == lms and orientation_moving_strand==1) or (first_crossing[0]==mms and orientation_moving_strand==-1) ) else 1
         
         ind1 = orientation_moving_strand if over==-1 else orientation_right_strand
         ind2 = orientation_moving_strand if over==-1 else orientation_left_strand
