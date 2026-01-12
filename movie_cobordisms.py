@@ -78,8 +78,6 @@ def strand_index(crossing, strand, direction):
             return 2 
         return (1 if crossing[1] == strand else 3)
 
-    raise ValueError("get your crossings right or smth")
-
 def strand_circle(strand, state):
 
     """
@@ -1545,6 +1543,3 @@ def height_khovanov_chain_complex(link, height, base_output = False, ring=QQ):
         return (ChainComplex(complexes, base_ring=ring, check=True), bases)
     return ChainComplex(complexes, base_ring=ring,check=True)
 
-
-
-    
