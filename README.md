@@ -1,6 +1,5 @@
-# SPUR-2025
-Khovanov homology implementation of movie cobordisms based on Sagemath's library
-
+# SPUR-2025 (Wacyl Meddour, Veronika Moroz)
+Khovanov homology implementation of movie cobordisms based on Sagemath's library.
 
 The code in this project heavily relies on the SageMath library's implementation of both Khovanov Homology for knots as well as Chain Complexes and other mathematical objects. 
 The goal is to be able to automate cobordism movie moves to compute the induced map on homology which is well-defined up to sign modulo smooth isotopies of surfaces in B^4 bounding links in S^3.
@@ -58,3 +57,5 @@ VII) REFERENCES:
 -------------
 - [1] : On Khovanov’s categorification of the Jones polynomial, Dror Bar-Natan.
 - [2] : REMARKS ON DEFINITION OF KHOVANOV HOMOLOGY, Oleg Viro.
+
+Acknowledgments: The authors would like to thank Mary Stelow for her mentoring during Summer 2025, as well as Roman Bezrukanikov, Jonathan Bloom and Yufei An for supervising the SPUR program at MIT. 
